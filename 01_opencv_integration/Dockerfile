@@ -61,27 +61,26 @@ RUN mkdir -p libs/arm64-v8a libs/armeabi-v7a libs/x86 libs/x86_64 && \
 
 # Create OpenCV config file
 RUN mkdir -p cv2_config && \
-    echo '# OpenCV configuration file for Android\n\
-import os\n\
-import sys\n\
-\n\
-BINARIES_PATHS = []\n\
-HEADLESS = True\n\
-DEBUG = False\n\
-LOADER_PYTHON_VERSION = "{}.{}.{}".format(*sys.version_info[:3])\n\
-\n\
-# Native libraries for Android\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/files/app/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/files/app/lib")\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/lib")\n\
-\n\
-# Tell OpenCV where to find its native libraries\n\
-if hasattr(sys, "getandroidapilevel"):\n\
-    ANDROID = True\n\
-else:\n\
-    ANDROID = False\n\
-' > cv2_config/config.py && \
+    echo '# OpenCV configuration file for Android' > cv2_config/config.py && \
+    echo 'import os' >> cv2_config/config.py && \
+    echo 'import sys' >> cv2_config/config.py && \
+    echo '' >> cv2_config/config.py && \
+    echo 'BINARIES_PATHS = []' >> cv2_config/config.py && \
+    echo 'HEADLESS = True' >> cv2_config/config.py && \
+    echo 'DEBUG = False' >> cv2_config/config.py && \
+    echo 'LOADER_PYTHON_VERSION = "{}.{}.{}".format(*sys.version_info[:3])' >> cv2_config/config.py && \
+    echo '' >> cv2_config/config.py && \
+    echo '# Native libraries for Android' >> cv2_config/config.py && \
+    echo 'if os.path.exists("/data/data/org.example.kivyopencvcamera/files/app/lib"):' >> cv2_config/config.py && \
+    echo '    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/files/app/lib")' >> cv2_config/config.py && \
+    echo 'if os.path.exists("/data/data/org.example.kivyopencvcamera/lib"):' >> cv2_config/config.py && \
+    echo '    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/lib")' >> cv2_config/config.py && \
+    echo '' >> cv2_config/config.py && \
+    echo '# Tell OpenCV where to find its native libraries' >> cv2_config/config.py && \
+    echo 'if hasattr(sys, "getandroidapilevel"):' >> cv2_config/config.py && \
+    echo '    ANDROID = True' >> cv2_config/config.py && \
+    echo 'else:' >> cv2_config/config.py && \
+    echo '    ANDROID = False' >> cv2_config/config.py && \
     echo '# OpenCV config package' > cv2_config/__init__.py
 
 # Android SDK setup - download commandline tools
@@ -124,179 +123,108 @@ RUN mkdir -p /root/.buildozer/android/platform && \
 RUN mkdir -p /root/.buildozer/android/platform/python-for-android/recipes/opencv
 
 # Create setup_hooks.py for P4A to use during build
-RUN echo 'import os\n\
-import shutil\n\
-import glob\n\
-from os.path import join, exists, basename\n\
-\n\
-def before_apk_build(context):\n\
-    print("Running pre-build hook for OpenCV integration...")\n\
-    # Check for OpenCV configuration\n\
-    site_packages = context.site_packages_dir\n\
-    \n\
-    # Create cv2 directory if needed\n\
-    cv2_dir = os.path.join(site_packages, "cv2")\n\
-    os.makedirs(cv2_dir, exist_ok=True)\n\
-    \n\
-    # Copy config.py to cv2 directory\n\
-    if os.path.exists("cv2_config/config.py"):\n\
-        shutil.copy("cv2_config/config.py", os.path.join(cv2_dir, "config.py"))\n\
-        print("Copied config.py to cv2 directory")\n\
-    else:\n\
-        print("Warning: config.py not found in cv2_config directory")\n\
-        # Create the config file directly\n\
-        with open(os.path.join(cv2_dir, "config.py"), "w") as f:\n\
-            f.write("""\n\
-# Auto-generated config.py for OpenCV on Android\n\
-import os\n\
-import sys\n\
-\n\
-BINARIES_PATHS = []\n\
-HEADLESS = True\n\
-DEBUG = False\n\
-LOADER_PYTHON_VERSION = "{}.{}.{}".format(*sys.version_info[:3])\n\
-\n\
-# Native libraries for Android\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/files/app/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/files/app/lib")\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/lib")\n\
-\n\
-# Tell OpenCV where to find its native libraries\n\
-if hasattr(sys, "getandroidapilevel"):\n\
-    ANDROID = True\n\
-else:\n\
-    ANDROID = False\n\
-""")\n\
-            print("Created config.py file directly in cv2 directory")\n\
-\n\
-def after_apk_build(context):\n\
-    print("Running post-build hook for OpenCV integration...")\n\
-    # Nothing needed here for now\n\
-    pass\n\
-' > setup_hooks.py
+RUN echo '# P4A hooks for OpenCV' > setup_hooks.py && \
+    echo 'import os' >> setup_hooks.py && \
+    echo 'import shutil' >> setup_hooks.py && \
+    echo 'import glob' >> setup_hooks.py && \
+    echo 'from os.path import join, exists, basename' >> setup_hooks.py && \
+    echo '' >> setup_hooks.py && \
+    echo 'def before_apk_build(context):' >> setup_hooks.py && \
+    echo '    print("Running pre-build hook for OpenCV integration...")' >> setup_hooks.py && \
+    echo '    # Check for OpenCV configuration' >> setup_hooks.py && \
+    echo '    site_packages = context.site_packages_dir' >> setup_hooks.py && \
+    echo '' >> setup_hooks.py && \
+    echo '    # Create cv2 directory if needed' >> setup_hooks.py && \
+    echo '    cv2_dir = os.path.join(site_packages, "cv2")' >> setup_hooks.py && \
+    echo '    os.makedirs(cv2_dir, exist_ok=True)' >> setup_hooks.py && \
+    echo '' >> setup_hooks.py && \
+    echo '    # Copy config.py to cv2 directory' >> setup_hooks.py && \
+    echo '    if os.path.exists("cv2_config/config.py"):' >> setup_hooks.py && \
+    echo '        shutil.copy("cv2_config/config.py", os.path.join(cv2_dir, "config.py"))' >> setup_hooks.py && \
+    echo '        print("Copied config.py to cv2 directory")' >> setup_hooks.py && \
+    echo '    else:' >> setup_hooks.py && \
+    echo '        print("Warning: config.py not found in cv2_config directory")' >> setup_hooks.py && \
+    echo '' >> setup_hooks.py && \
+    echo 'def after_apk_build(context):' >> setup_hooks.py && \
+    echo '    print("Running post-build hook for OpenCV integration...")' >> setup_hooks.py && \
+    echo '    # Nothing needed here for now' >> setup_hooks.py && \
+    echo '    pass' >> setup_hooks.py
 
 # Create simplified opencv_recipe.py
-RUN echo 'from pythonforandroid.recipe import PythonRecipe\n\
-\n\
-class OpenCVRecipe(PythonRecipe):\n\
-    version = "4.5.5.64"\n\
-    url = "https://pypi.org/project/opencv-python-headless/4.5.5.64/"\n\
-    depends = ["numpy"]\n\
-    site_packages_name = "cv2"\n\
-\n\
-recipe = OpenCVRecipe()\n\
-' > /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py
+RUN echo 'from pythonforandroid.recipe import PythonRecipe' > /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo 'class OpenCVRecipe(PythonRecipe):' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    version = "4.5.5.64"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    url = "https://pypi.org/project/opencv-python-headless/4.5.5.64/"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    depends = ["numpy"]' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    site_packages_name = "cv2"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo 'recipe = OpenCVRecipe()' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py
 
-# Patch buildozer to disable root user check and fix NDK path
-RUN echo '#!/usr/bin/env python3\n\
-import fileinput\n\
-import sys\n\
-import os\n\
-\n\
-# First patch - disable root user check\n\
-filename = "/usr/local/lib/python3.8/dist-packages/buildozer/__init__.py"\n\
-with fileinput.FileInput(filename, inplace=True) as file:\n\
-    for line in file:\n\
-        if "def check_root(self):" in line:\n\
-            print(line, end="")\n\
-            print("        # Root check disabled for Docker")\n\
-            print("        return")\n\
-            continue\n\
-        print(line, end="")\n\
-\n\
-# Second patch - use pre-downloaded NDK\n\
-filename = "/usr/local/lib/python3.8/dist-packages/buildozer/targets/android.py"\n\
-with fileinput.FileInput(filename, inplace=True) as file:\n\
-    for line in file:\n\
-        if "def _install_android_ndk(self):" in line:\n\
-            print(line, end="")\n\
-            print("        # Skip downloading NDK - use pre-downloaded version")\n\
-            print("        ndk_dir = self.android_ndk_dir")\n\
-            print("        self.buildozer.info(\'Android NDK found at {}\'.format(ndk_dir))")\n\
-            print("        return")\n\
-            continue\n\
-        print(line, end="")\n\
-' > /tmp/patch_buildozer.py && \
+# Create script to patch buildozer
+RUN echo '#!/usr/bin/env python3' > /tmp/patch_buildozer.py && \
+    echo 'import fileinput' >> /tmp/patch_buildozer.py && \
+    echo 'import sys' >> /tmp/patch_buildozer.py && \
+    echo 'import os' >> /tmp/patch_buildozer.py && \
+    echo '' >> /tmp/patch_buildozer.py && \
+    echo '# First patch - disable root user check' >> /tmp/patch_buildozer.py && \
+    echo 'filename = "/usr/local/lib/python3.8/dist-packages/buildozer/__init__.py"' >> /tmp/patch_buildozer.py && \
+    echo 'with fileinput.FileInput(filename, inplace=True) as file:' >> /tmp/patch_buildozer.py && \
+    echo '    for line in file:' >> /tmp/patch_buildozer.py && \
+    echo '        if "def check_root(self):" in line:' >> /tmp/patch_buildozer.py && \
+    echo '            print(line, end="")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        # Root check disabled for Docker")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        return")' >> /tmp/patch_buildozer.py && \
+    echo '            continue' >> /tmp/patch_buildozer.py && \
+    echo '        print(line, end="")' >> /tmp/patch_buildozer.py && \
+    echo '' >> /tmp/patch_buildozer.py && \
+    echo '# Second patch - use pre-downloaded NDK' >> /tmp/patch_buildozer.py && \
+    echo 'filename = "/usr/local/lib/python3.8/dist-packages/buildozer/targets/android.py"' >> /tmp/patch_buildozer.py && \
+    echo 'with fileinput.FileInput(filename, inplace=True) as file:' >> /tmp/patch_buildozer.py && \
+    echo '    for line in file:' >> /tmp/patch_buildozer.py && \
+    echo '        if "def _install_android_ndk(self):" in line:' >> /tmp/patch_buildozer.py && \
+    echo '            print(line, end="")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        # Skip downloading NDK - use pre-downloaded version")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        ndk_dir = self.android_ndk_dir")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        self.buildozer.info(\'Android NDK found at {}\'.format(ndk_dir))")' >> /tmp/patch_buildozer.py && \
+    echo '            print("        return")' >> /tmp/patch_buildozer.py && \
+    echo '            continue' >> /tmp/patch_buildozer.py && \
+    echo '        print(line, end="")' >> /tmp/patch_buildozer.py && \
     python3 /tmp/patch_buildozer.py
 
 # Create build script
-RUN echo '#!/bin/bash\n\
-export ANDROID_HOME=/root/android-sdk\n\
-export ANDROID_SDK_ROOT=/root/android-sdk\n\
-export ANDROID_NDK_HOME=/root/android-sdk/ndk/25.2.9519653\n\
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64\n\
-export PATH=$PATH:/root/android-sdk/platform-tools:/root/android-sdk/cmdline-tools/latest/bin:$ANDROID_NDK_HOME\n\
-\n\
-# Configure gradle for Java 17\n\
-mkdir -p /root/.gradle\n\
-cat > /root/.gradle/gradle.properties << EOF\n\
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n\
-org.gradle.daemon=true\n\
-org.gradle.parallel=true\n\
-org.gradle.java.home=${JAVA_HOME}\n\
-android.useAndroidX=true\n\
-android.enableJetifier=true\n\
-EOF\n\
-\n\
-# Clean build if requested\n\
-if [ "$1" = "clean" ]; then\n\
-    echo "Cleaning buildozer cache..."\n\
-    rm -rf /app/.buildozer\n\
-fi\n\
-\n\
-# Ensure .buildozer directory exists with proper permissions\n\
-mkdir -p /app/.buildozer\n\
-chmod -R 777 /app/.buildozer\n\
-\n\
-# Create buildozer.spec if it doesn\'t exist\n\
-if [ ! -f "/app/buildozer.spec" ]; then\n\
-    echo "Creating default buildozer.spec..."\n\
-    buildozer init\n\
-fi\n\
-\n\
-# Create important directories\n\
-mkdir -p /app/libs/arm64-v8a\n\
-mkdir -p /app/libs/armeabi-v7a\n\
-mkdir -p /app/libs/x86\n\
-mkdir -p /app/libs/x86_64\n\
-mkdir -p /app/cv2_config\n\
-\n\
-# Create OpenCV config if it doesn\'t exist\n\
-if [ ! -f "/app/cv2_config/config.py" ]; then\n\
-    echo "Creating OpenCV config..."\n\
-    cat > /app/cv2_config/config.py << EOF\n\
-# OpenCV configuration file for Android\n\
-import os\n\
-import sys\n\
-\n\
-BINARIES_PATHS = []\n\
-HEADLESS = True\n\
-DEBUG = False\n\
-LOADER_PYTHON_VERSION = "{}.{}.{}".format(*sys.version_info[:3])\n\
-\n\
-# Native libraries for Android\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/files/app/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/files/app/lib")\n\
-if os.path.exists("/data/data/org.example.kivyopencvcamera/lib"):\n\
-    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/lib")\n\
-\n\
-# Tell OpenCV where to find its native libraries\n\
-if hasattr(sys, "getandroidapilevel"):\n\
-    ANDROID = True\n\
-else:\n\
-    ANDROID = False\n\
-EOF\n\
-    echo "# OpenCV config package" > /app/cv2_config/__init__.py\n\
-fi\n\
-\n\
-# Copy setup hooks\n\
-cp /app/setup_hooks.py /app/\n\
-\n\
-# Run buildozer with debug output\n\
-cd /app\n\
-buildozer -v android debug\n\
-' > /usr/local/bin/build_apk.sh && chmod +x /usr/local/bin/build_apk.sh
+RUN echo '#!/bin/bash' > /usr/local/bin/build_apk.sh && \
+    echo 'export ANDROID_HOME=/root/android-sdk' >> /usr/local/bin/build_apk.sh && \
+    echo 'export ANDROID_SDK_ROOT=/root/android-sdk' >> /usr/local/bin/build_apk.sh && \
+    echo 'export ANDROID_NDK_HOME=/root/android-sdk/ndk/25.2.9519653' >> /usr/local/bin/build_apk.sh && \
+    echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' >> /usr/local/bin/build_apk.sh && \
+    echo 'export PATH=$PATH:/root/android-sdk/platform-tools:/root/android-sdk/cmdline-tools/latest/bin:$ANDROID_NDK_HOME' >> /usr/local/bin/build_apk.sh && \
+    echo '' >> /usr/local/bin/build_apk.sh && \
+    echo '# Configure gradle for Java 17' >> /usr/local/bin/build_apk.sh && \
+    echo 'mkdir -p /root/.gradle' >> /usr/local/bin/build_apk.sh && \
+    echo 'cat > /root/.gradle/gradle.properties << EOF' >> /usr/local/bin/build_apk.sh && \
+    echo 'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' >> /usr/local/bin/build_apk.sh && \
+    echo 'org.gradle.daemon=true' >> /usr/local/bin/build_apk.sh && \
+    echo 'org.gradle.parallel=true' >> /usr/local/bin/build_apk.sh && \
+    echo 'org.gradle.java.home=${JAVA_HOME}' >> /usr/local/bin/build_apk.sh && \
+    echo 'android.useAndroidX=true' >> /usr/local/bin/build_apk.sh && \
+    echo 'android.enableJetifier=true' >> /usr/local/bin/build_apk.sh && \
+    echo 'EOF' >> /usr/local/bin/build_apk.sh && \
+    echo '' >> /usr/local/bin/build_apk.sh && \
+    echo '# Clean build if requested' >> /usr/local/bin/build_apk.sh && \
+    echo 'if [ "$1" = "clean" ]; then' >> /usr/local/bin/build_apk.sh && \
+    echo '    echo "Cleaning buildozer cache..."' >> /usr/local/bin/build_apk.sh && \
+    echo '    rm -rf /app/.buildozer' >> /usr/local/bin/build_apk.sh && \
+    echo 'fi' >> /usr/local/bin/build_apk.sh && \
+    echo '' >> /usr/local/bin/build_apk.sh && \
+    echo '# Ensure .buildozer directory exists with proper permissions' >> /usr/local/bin/build_apk.sh && \
+    echo 'mkdir -p /app/.buildozer' >> /usr/local/bin/build_apk.sh && \
+    echo 'chmod -R 777 /app/.buildozer' >> /usr/local/bin/build_apk.sh && \
+    echo '' >> /usr/local/bin/build_apk.sh && \
+    echo '# Run buildozer with debug output' >> /usr/local/bin/build_apk.sh && \
+    echo 'cd /app' >> /usr/local/bin/build_apk.sh && \
+    echo 'buildozer -v android debug' >> /usr/local/bin/build_apk.sh && \
+    chmod +x /usr/local/bin/build_apk.sh
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/build_apk.sh"]
