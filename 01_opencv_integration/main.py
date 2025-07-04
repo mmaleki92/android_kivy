@@ -1,134 +1,114 @@
+import os
+import sys
+import traceback
 from kivy.app import App
+from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.image import Image
+from kivy.uix.label import Label
+from kivy.logger import Logger
 from kivy.clock import Clock
-from kivy.graphics.texture import Texture
-import cv2
-import numpy as np
 
+# Set up better error reporting
+os.environ['KIVY_NO_CONSOLELOG'] = '0'
 
-class CameraCV(Image):
+# Try importing OpenCV with robust error handling
+try:
+    Logger.info("OpenCV: Attempting to import cv2...")
+    import cv2
+    Logger.info("OpenCV: Successfully imported cv2 version " + cv2.__version__)
+    HAS_CV2 = True
+except Exception as e:
+    Logger.error("OpenCV: Failed to import cv2: " + str(e))
+    Logger.error("OpenCV: " + traceback.format_exc())
+    HAS_CV2 = False
+
+# Define the UI with error reporting
+kv = '''
+BoxLayout:
+    orientation: 'vertical'
+    padding: 10
+    
+    Label:
+        text: 'Kivy OpenCV Camera App'
+        size_hint_y: 0.1
+    
+    BoxLayout:
+        id: content
+        size_hint_y: 0.8
+        
+    Label:
+        id: status
+        text: 'OpenCV Status: Initializing...'
+        size_hint_y: 0.1
+        color: 1, 0, 0, 1
+'''
+
+class MainApp(App):
     def __init__(self, **kwargs):
-        super(CameraCV, self).__init__(**kwargs)
-        self.capture = None
-        self.processing_mode = 'normal'
-
-    def start(self):
-        """Start the camera capture"""
-        self.capture = cv2.VideoCapture(0)
-        if not self.capture.isOpened():
-            print("Error: Could not open camera.")
-            return
+        super(MainApp, self).__init__(**kwargs)
+        self.log_messages = []
         
-        # Schedule the update
-        Clock.schedule_interval(self.update, 1.0 / 30.0)  # 30 FPS
-
-    def stop(self):
-        """Stop the camera capture"""
-        if self.capture:
-            Clock.unschedule(self.update)
-            self.capture.release()
-            self.capture = None
-
-    def update(self, dt):
-        """Update the camera feed with OpenCV processing"""
-        if self.capture is None:
-            return
-            
-        ret, frame = self.capture.read()
-        if ret:
-            # OpenCV processing based on mode
-            if self.processing_mode == 'grayscale':
-                # Convert to grayscale
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)  # Convert back for display
-            elif self.processing_mode == 'edges':
-                # Edge detection
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                edges = cv2.Canny(gray, 100, 200)
-                frame = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-            elif self.processing_mode == 'blur':
-                # Apply Gaussian blur
-                frame = cv2.GaussianBlur(frame, (15, 15), 0)
-            
-            # Flip the frame (mirror effect)
-            frame = cv2.flip(frame, 1)
-            
-            # Convert to texture
-            buf = cv2.flip(frame, 0).tobytes()
-            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
-            
-            # Display the image from the texture
-            self.texture = texture
-
-
-class CameraApp(App):
     def build(self):
-        # Main layout
-        layout = BoxLayout(orientation='vertical')
-        
-        # Camera display
-        self.camera = CameraCV()
-        layout.add_widget(self.camera)
-        
-        # Buttons layout
-        button_layout = BoxLayout(size_hint=(1, 0.1))
-        
-        # Start button
-        btn_start = Button(text='Start Camera')
-        btn_start.bind(on_press=self.start_camera)
-        button_layout.add_widget(btn_start)
-        
-        # Stop button
-        btn_stop = Button(text='Stop Camera')
-        btn_stop.bind(on_press=self.stop_camera)
-        button_layout.add_widget(btn_stop)
-        
-        # Image processing buttons
-        btn_normal = Button(text='Normal')
-        btn_normal.bind(on_press=self.set_normal)
-        button_layout.add_widget(btn_normal)
-        
-        btn_gray = Button(text='Grayscale')
-        btn_gray.bind(on_press=self.set_grayscale)
-        button_layout.add_widget(btn_gray)
-        
-        btn_edges = Button(text='Edge Detection')
-        btn_edges.bind(on_press=self.set_edges)
-        button_layout.add_widget(btn_edges)
-        
-        btn_blur = Button(text='Blur')
-        btn_blur.bind(on_press=self.set_blur)
-        button_layout.add_widget(btn_blur)
-        
-        # Add button layout to main layout
-        layout.add_widget(button_layout)
-        
-        return layout
+        try:
+            root = Builder.load_string(kv)
+            # Add error log display
+            self.log_label = Label(
+                text='Log Messages Will Appear Here',
+                size_hint=(1, 1),
+                halign='left',
+                valign='top',
+                text_size=(None, None),
+                color=(1, 1, 1, 1),
+            )
+            log_box = BoxLayout(orientation='vertical')
+            log_box.add_widget(self.log_label)
+            root.ids.content.add_widget(log_box)
+            
+            # Update OpenCV status
+            if HAS_CV2:
+                root.ids.status.text = f'OpenCV {cv2.__version__} loaded successfully'
+                root.ids.status.color = (0, 1, 0, 1)
+            else:
+                root.ids.status.text = 'Error: OpenCV failed to load!'
+                
+            # Schedule log updates
+            Clock.schedule_interval(self.update_log, 1)
+            
+            return root
+        except Exception as e:
+            Logger.error("App: Build error: " + str(e))
+            Logger.error("App: " + traceback.format_exc())
+            return BoxLayout()
     
-    def start_camera(self, instance):
-        self.camera.start()
+    def update_log(self, dt):
+        # Keep log up to date with any new messages
+        self.log_label.text = '\n'.join(self.log_messages[-10:])
         
-    def stop_camera(self, instance):
-        self.camera.stop()
-    
-    def set_normal(self, instance):
-        self.camera.processing_mode = 'normal'
-    
-    def set_grayscale(self, instance):
-        self.camera.processing_mode = 'grayscale'
-        
-    def set_edges(self, instance):
-        self.camera.processing_mode = 'edges'
-        
-    def set_blur(self, instance):
-        self.camera.processing_mode = 'blur'
+    def log(self, msg):
+        Logger.info("App: " + msg)
+        self.log_messages.append(msg)
+        if len(self.log_messages) > 50:
+            self.log_messages.pop(0)
 
-    def on_stop(self):
-        self.camera.stop()
-
+    def on_start(self):
+        # App startup
+        self.log("Application started")
+        if HAS_CV2:
+            self.log(f"OpenCV {cv2.__version__} initialized")
+            # List available cameras
+            try:
+                self.log("Checking camera availability...")
+                if hasattr(cv2, 'getBuildInformation'):
+                    self.log("OpenCV build: OK")
+            except Exception as e:
+                self.log(f"Camera check error: {str(e)}")
+        else:
+            self.log("OpenCV FAILED TO LOAD")
 
 if __name__ == '__main__':
-    CameraApp().run()
+    try:
+        Logger.info("App: Starting application")
+        MainApp().run()
+    except Exception as e:
+        Logger.error("App: Fatal error: " + str(e))
+        Logger.error("App: " + traceback.format_exc())
