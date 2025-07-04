@@ -14,6 +14,13 @@ def before_apk_build(toolchain):
     dist_name = getattr(toolchain.args, 'dist_name', 'kivyopencvcamera')
     dist_dir = os.path.join(toolchain.ctx.dist_dir, dist_name)
     
+    # Get the architecture - handling both string and list cases
+    arch = getattr(toolchain.args, 'arch', 'arm64-v8a')
+    if isinstance(arch, list):
+        arch = arch[0]  # Take the first architecture if it's a list
+    
+    print(f"Target architecture: {arch}")
+    
     # Find Python bundle directory
     python_bundle_dir = None
     for root, dirs, files in os.walk(dist_dir):
@@ -47,10 +54,6 @@ def before_apk_build(toolchain):
     
     # Copy native libraries from our libs directory to cv2/libs
     # based on the target architecture
-    arch = getattr(toolchain.args, 'arch', 'arm64-v8a')
-    print(f"Target architecture: {arch}")
-    
-    # Look for OpenCV native libraries in project
     src_libs_dir = os.path.join(os.getcwd(), 'libs', arch)
     if os.path.exists(src_libs_dir):
         for lib_file in os.listdir(src_libs_dir):
