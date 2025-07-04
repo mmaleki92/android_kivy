@@ -49,6 +49,16 @@ RUN pip3 install --upgrade pip && \
 # Create app directory
 WORKDIR /app
 
+# Copy OpenCV setup files
+COPY download_opencv_libs.py /app/
+COPY opencv_hook.py /app/
+COPY setup_build.sh /app/
+
+# Make scripts executable and run setup
+RUN chmod +x /app/download_opencv_libs.py && \
+    chmod +x /app/setup_build.sh && \
+    /app/setup_build.sh
+
 # Setup directories for OpenCV libraries and create placeholder files
 RUN mkdir -p libs/arm64-v8a libs/armeabi-v7a libs/x86 libs/x86_64 && \
     touch libs/arm64-v8a/libopencv_core.so && \

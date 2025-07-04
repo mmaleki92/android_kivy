@@ -24,6 +24,9 @@ android.add_libs_arm64_v8a = libs/arm64-v8a/*.so
 android.add_libs_x86 = libs/x86/*.so
 android.add_libs_x86_64 = libs/x86_64/*.so
 
+# Include libs directory in the APK
+android.add_src = libs
+
 # Explicitly add OpenCV dependencies
 android.gradle_dependencies = androidx.core:core:1.8.0, androidx.multidex:multidex:2.0.1
 
