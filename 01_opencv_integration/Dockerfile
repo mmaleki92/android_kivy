@@ -4,9 +4,8 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME="/root/android-sdk"
 ENV ANDROID_SDK_ROOT="/root/android-sdk"
-ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
-# Set JAVA_HOME explicitly
 ENV JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
 
 # Install required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -40,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip3 install --upgrade pip && \
     pip3 install --no-cache-dir buildozer==1.5.0 Cython==0.29.33
 
+# Create app directory
+WORKDIR /app
+
 # Download and install Android SDK command-line tools using the correct directory structure
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd ${ANDROID_HOME}/cmdline-tools && \
@@ -68,14 +70,6 @@ RUN mkdir -p ${ANDROID_HOME}/tools/bin && \
     ln -sf ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager ${ANDROID_HOME}/tools/bin/sdkmanager && \
     ln -sf ${ANDROID_HOME}/cmdline-tools/latest/bin/avdmanager ${ANDROID_HOME}/tools/bin/avdmanager
 
-# Add a gradle.properties file to help with compatibility
-RUN mkdir -p /root/.gradle && \
-    echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" > /root/.gradle/gradle.properties && \
-    echo "org.gradle.daemon=true" >> /root/.gradle/gradle.properties && \
-    echo "org.gradle.parallel=true" >> /root/.gradle/gradle.properties && \
-    echo "org.gradle.configureondemand=true" >> /root/.gradle/gradle.properties && \
-    echo "org.gradle.java.home=${JAVA_HOME}" >> /root/.gradle/gradle.properties
-
 # Patch the buildozer script to disable root user check
 RUN echo '#!/usr/bin/env python3\n\
 import fileinput\n\
@@ -93,20 +87,63 @@ with fileinput.FileInput(filename, inplace=True) as file:\n\
 ' > /tmp/patch_buildozer.py && \
     python3 /tmp/patch_buildozer.py
 
-# Create a script to build the APK
+# Also patch python-for-android to use Gradle 8.0
+RUN pip3 install git+https://github.com/kivy/python-for-android.git && \
+    echo '#!/usr/bin/env python3\n\
+import fileinput\n\
+import sys\n\
+import os\n\
+from pathlib import Path\n\
+\n\
+for root, dirs, files in os.walk("/usr/local/lib/python3.8/dist-packages/pythonforandroid"):\n\
+    for file in files:\n\
+        if file == "build.py" or file == "gradle.py":\n\
+            filepath = os.path.join(root, file)\n\
+            with fileinput.FileInput(filepath, inplace=True) as file_handle:\n\
+                for line in file_handle:\n\
+                    if "distributionUrl=https\\\\://services.gradle.org/distributions/gradle-" in line:\n\
+                        print(line.replace("7.6.1", "8.0"), end="")\n\
+                    else:\n\
+                        print(line, end="")\n\
+' > /tmp/patch_p4a.py && \
+    python3 /tmp/patch_p4a.py
+
+# Create a script to build the APK with Gradle 8.0
 RUN echo '#!/bin/bash\n\
 export ANDROID_HOME=/root/android-sdk\n\
 export ANDROID_SDK_ROOT=/root/android-sdk\n\
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\n\
 export PATH=$PATH:/root/android-sdk/platform-tools:/root/android-sdk/cmdline-tools/latest/bin\n\
 \n\
-# Create gradle.properties for this specific build\n\
+# If the gradle wrapper already exists, update it to use Gradle 8.0\n\
 if [ -d "/app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera" ]; then\n\
     mkdir -p /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper\n\
-    echo "distributionUrl=https\\://services.gradle.org/distributions/gradle-7.6.1-bin.zip" > /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
+    echo "distributionBase=GRADLE_USER_HOME" > /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
+    echo "distributionPath=wrapper/dists" >> /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
+    echo "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-bin.zip" >> /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
+    echo "zipStoreBase=GRADLE_USER_HOME" >> /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
+    echo "zipStorePath=wrapper/dists" >> /app/.buildozer/android/platform/build-arm64-v8a/dists/kivyopencvcamera/gradle/wrapper/gradle-wrapper.properties\n\
 fi\n\
 \n\
-# Run buildozer\n\
+# Create a custom global gradle.properties with Gradle 8.0 compatibility\n\
+mkdir -p /root/.gradle\n\
+cat > /root/.gradle/gradle.properties << EOF\n\
+org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\n\
+org.gradle.daemon=true\n\
+org.gradle.parallel=true\n\
+org.gradle.configureondemand=true\n\
+org.gradle.java.home=${JAVA_HOME}\n\
+android.useAndroidX=true\n\
+android.enableJetifier=true\n\
+EOF\n\
+\n\
+# Clean buildozer cache if needed\n\
+if [ "$1" = "clean" ]; then\n\
+    echo "Cleaning buildozer cache..."\n\
+    rm -rf /app/.buildozer\n\
+fi\n\
+\n\
+# Run buildozer with proper configuration\n\
 cd /app\n\
 buildozer -v android debug\n\
 ' > /usr/local/bin/build_apk.sh && chmod +x /usr/local/bin/build_apk.sh

@@ -17,12 +17,10 @@ android.sdk_path = /root/android-sdk
 android.ndk_path = /root/android-sdk/ndk/25.2.9519653
 android.arch = arm64-v8a
 android.accept_sdk_license = True
-# Add gradle options
-android.gradle_dependencies = androidx.core:core:1.6.0, androidx.multidex:multidex:2.0.1
-android.gradle_hook = app/build.gradle:repositories:mavenCentral(); maven { url 'https://maven.google.com' }
+# Android Gradle plugin configuration
+android.gradle_dependencies = androidx.core:core:1.8.0, androidx.multidex:multidex:2.0.1
+android.gradle_hook = app/build.gradle:repositories:mavenCentral(); google()
 android.enable_androidx = True
-android.extra_build_options = -PbuildDir=build/gradle
-android.gradle_path = /usr/local/bin/gradle
 
 # iOS specific
 ios.kivy_ios_url = https://github.com/kivy/kivy-ios
