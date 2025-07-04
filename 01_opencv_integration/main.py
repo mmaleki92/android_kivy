@@ -22,6 +22,19 @@ except Exception as e:
     Logger.error("OpenCV: " + traceback.format_exc())
     HAS_CV2 = False
 
+    # Try to diagnose the issue further
+    try:
+        import os
+        Logger.error("OpenCV: App directory contents: " + str(os.listdir('.')))
+        
+        # Check if we can find OpenCV libraries in common paths
+        for lib_path in ['/data/data/org.example.kivyopencvcamera/files/app/lib', 
+                         '/data/data/org.example.kivyopencvcamera/files/lib']:
+            if os.path.exists(lib_path):
+                Logger.error(f"OpenCV: Checking {lib_path}: " + str(os.listdir(lib_path)))
+    except Exception as e2:
+        Logger.error("OpenCV: Diagnostics failed: " + str(e2))
+
 # Define the UI with error reporting
 kv = '''
 BoxLayout:
@@ -104,6 +117,20 @@ class MainApp(App):
                 self.log(f"Camera check error: {str(e)}")
         else:
             self.log("OpenCV FAILED TO LOAD")
+            # Try to show more information about the Python environment
+            try:
+                import sys
+                self.log(f"Python version: {sys.version}")
+                self.log(f"Python path: {sys.path}")
+                
+                # Try to import numpy to check if it's working
+                try:
+                    import numpy
+                    self.log(f"NumPy version: {numpy.__version__}")
+                except Exception as e:
+                    self.log(f"NumPy import error: {str(e)}")
+            except Exception as e:
+                self.log(f"Environment check error: {str(e)}")
 
 if __name__ == '__main__':
     try:
