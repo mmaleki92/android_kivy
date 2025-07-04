@@ -5,4 +5,4 @@ services:
     build: .
     volumes:
       - .:/app
-      - ./bin:/app/bin  # Ensure the bin directory with APKs is accessible
+      - ./bin:/app/bin

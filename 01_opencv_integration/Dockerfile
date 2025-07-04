@@ -3,7 +3,9 @@ FROM ubuntu:20.04
 
 # Environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/root/.local/bin:${PATH}"
+ENV PATH="/root/.local/bin:/root/android-sdk/cmdline-tools/latest/bin:${PATH}"
+ENV ANDROID_HOME="/root/android-sdk"
+ENV ANDROID_SDK_ROOT="/root/android-sdk"
 
 # Install required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -40,13 +42,26 @@ RUN pip3 install --upgrade pip && \
 # Create app directory
 WORKDIR /app
 
-# Accept Android licenses
-RUN mkdir -p /root/.android && \
-    echo '24333f8a63b6825ea9c5514f83c2829b004d1fee' > /root/.android/repositories.cfg && \
-    mkdir -p /root/.buildozer/android/platform/licenses && \
-    echo "\n8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e" > /root/.buildozer/android/platform/licenses/android-sdk-license
+# Install Android SDK manually (bypassing buildozer's installation)
+RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
+    wget https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip -O cmdline-tools.zip && \
+    unzip cmdline-tools.zip -d ${ANDROID_HOME}/tmp && \
+    mv ${ANDROID_HOME}/tmp/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
+    rm -rf ${ANDROID_HOME}/tmp cmdline-tools.zip
 
-# Create a script in /usr/local/bin/ (not in /app which will be mounted over)
+# Accept all licenses
+RUN mkdir -p ${ANDROID_HOME}/licenses && \
+    echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ${ANDROID_HOME}/licenses/android-sdk-license && \
+    echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> ${ANDROID_HOME}/licenses/android-sdk-license && \
+    echo "8933bad161af4178b1185d1a37fbf41ea5269c55" >> ${ANDROID_HOME}/licenses/android-sdk-license && \
+    echo "84831b9409646a918e30573bab4c9c91346d8abd" > ${ANDROID_HOME}/licenses/android-sdk-preview-license
+
+# Install required Android SDK components
+RUN yes | sdkmanager --licenses && \
+    sdkmanager --update && \
+    sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+
+# Create a script to build the APK
 RUN echo '#!/bin/bash\n\
 # Patch the buildozer script to disable root user check\n\
 cat > /tmp/buildozer_patch.py << EOF\n\
@@ -66,6 +81,11 @@ with fileinput.FileInput(filename, inplace=True) as file:\n\
 EOF\n\
 \n\
 python3 /tmp/buildozer_patch.py\n\
+\n\
+# Make sure buildozer uses our pre-installed SDK\n\
+export ANDROID_HOME=/root/android-sdk\n\
+export ANDROID_SDK_ROOT=/root/android-sdk\n\
+export PATH=$PATH:/root/android-sdk/platform-tools\n\
 \n\
 # Now run buildozer\n\
 cd /app\n\
