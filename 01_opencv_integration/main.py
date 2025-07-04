@@ -8,8 +8,65 @@ from kivy.uix.label import Label
 from kivy.logger import Logger
 from kivy.clock import Clock
 
-# Set up better error reporting
-os.environ['KIVY_NO_CONSOLELOG'] = '0'
+# Setup OpenCV configuration before import
+def setup_opencv():
+    try:
+        Logger.info("OpenCV: Setting up configuration...")
+        
+        # Find site-packages directory
+        site_packages = None
+        for p in sys.path:
+            if p.endswith('site-packages'):
+                site_packages = p
+                break
+        
+        if site_packages:
+            # Create cv2 directory if it doesn't exist
+            cv2_dir = os.path.join(site_packages, 'cv2')
+            os.makedirs(cv2_dir, exist_ok=True)
+            
+            # Check if config.py already exists
+            config_file = os.path.join(cv2_dir, 'config.py')
+            if not os.path.exists(config_file):
+                Logger.info("OpenCV: Creating config.py file")
+                with open(config_file, 'w') as f:
+                    f.write("""
+# Auto-generated config.py for OpenCV on Android
+import os
+import sys
+
+BINARIES_PATHS = []
+HEADLESS = True
+DEBUG = False
+LOADER_PYTHON_VERSION = '{}.{}.{}'.format(*sys.version_info[:3])
+
+# Native libraries for Android
+if os.path.exists('/data/data/org.example.kivyopencvcamera/files/app/lib'):
+    BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/files/app/lib')
+if os.path.exists('/data/data/org.example.kivyopencvcamera/lib'):
+    BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/lib')
+
+# Tell OpenCV where to find its native libraries
+if hasattr(sys, 'getandroidapilevel'):
+    ANDROID = True
+else:
+    ANDROID = False
+""")
+                Logger.info(f"OpenCV: Created config.py at {config_file}")
+            else:
+                Logger.info(f"OpenCV: config.py already exists at {config_file}")
+            return True
+        else:
+            Logger.error("OpenCV: Could not find site-packages directory")
+            return False
+    except Exception as e:
+        Logger.error(f"OpenCV: Config setup error: {str(e)}")
+        Logger.error(f"OpenCV: {traceback.format_exc()}")
+        return False
+
+# Set up OpenCV configuration
+setup_success = setup_opencv()
+Logger.info(f"OpenCV: Configuration setup {'successful' if setup_success else 'failed'}")
 
 # Try importing OpenCV with robust error handling
 try:
@@ -27,11 +84,21 @@ except Exception as e:
         import os
         Logger.error("OpenCV: App directory contents: " + str(os.listdir('.')))
         
-        # Check if we can find OpenCV libraries in common paths
+        # Check Python site-packages
+        for path in sys.path:
+            if 'site-packages' in path and os.path.exists(path):
+                Logger.error(f"OpenCV: Site packages at {path}: {os.listdir(path)}")
+                
+                # Check if cv2 directory exists
+                cv2_path = os.path.join(path, 'cv2')
+                if os.path.exists(cv2_path):
+                    Logger.error(f"OpenCV: cv2 package contents: {os.listdir(cv2_path)}")
+        
+        # Check common library paths
         for lib_path in ['/data/data/org.example.kivyopencvcamera/files/app/lib', 
-                         '/data/data/org.example.kivyopencvcamera/files/lib']:
+                        '/data/data/org.example.kivyopencvcamera/lib']:
             if os.path.exists(lib_path):
-                Logger.error(f"OpenCV: Checking {lib_path}: " + str(os.listdir(lib_path)))
+                Logger.error(f"OpenCV: Libraries in {lib_path}: {os.listdir(lib_path)}")
     except Exception as e2:
         Logger.error("OpenCV: Diagnostics failed: " + str(e2))
 
@@ -79,7 +146,7 @@ class MainApp(App):
             
             # Update OpenCV status
             if HAS_CV2:
-                root.ids.status.text = f'OpenCV {cv2.__version__} loaded successfully'
+                root.ids.status.text = f'OpenCV loaded successfully'
                 root.ids.status.color = (0, 1, 0, 1)
             else:
                 root.ids.status.text = 'Error: OpenCV failed to load!'
@@ -107,19 +174,19 @@ class MainApp(App):
         # App startup
         self.log("Application started")
         if HAS_CV2:
-            self.log(f"OpenCV {cv2.__version__} initialized")
-            # List available cameras
+            self.log("OpenCV initialized successfully")
+            # Try to show OpenCV version
             try:
-                self.log("Checking camera availability...")
+                self.log(f"OpenCV version: {cv2.__version__}")
                 if hasattr(cv2, 'getBuildInformation'):
-                    self.log("OpenCV build: OK")
+                    build_info = cv2.getBuildInformation()
+                    self.log(f"OpenCV build info available: {'Yes' if build_info else 'No'}")
             except Exception as e:
-                self.log(f"Camera check error: {str(e)}")
+                self.log(f"Error getting OpenCV info: {str(e)}")
         else:
             self.log("OpenCV FAILED TO LOAD")
             # Try to show more information about the Python environment
             try:
-                import sys
                 self.log(f"Python version: {sys.version}")
                 self.log(f"Python path: {sys.path}")
                 

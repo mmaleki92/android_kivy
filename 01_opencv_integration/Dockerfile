@@ -48,9 +48,40 @@ RUN pip3 install --upgrade pip && \
 # Create app directory
 WORKDIR /app
 
-# Download and setup OpenCV native libraries
-COPY setup_opencv_libs.sh /tmp/
-RUN bash /tmp/setup_opencv_libs.sh
+# Setup OpenCV native libraries - embedded in the Dockerfile
+RUN mkdir -p libs/arm64-v8a libs/armeabi-v7a libs/x86 libs/x86_64 && \
+    wget -O opencv.zip https://github.com/opencv/opencv/releases/download/4.5.5/opencv-4.5.5-android-sdk.zip && \
+    unzip -q opencv.zip && \
+    cp -a opencv-4.5.5-android-sdk/sdk/native/libs/arm64-v8a/*.so libs/arm64-v8a/ && \
+    cp -a opencv-4.5.5-android-sdk/sdk/native/libs/armeabi-v7a/*.so libs/armeabi-v7a/ && \
+    cp -a opencv-4.5.5-android-sdk/sdk/native/libs/x86/*.so libs/x86/ && \
+    cp -a opencv-4.5.5-android-sdk/sdk/native/libs/x86_64/*.so libs/x86_64/ && \
+    rm -rf opencv.zip opencv-4.5.5-android-sdk
+
+# Create OpenCV config file
+RUN mkdir -p cv2_config && \
+    echo '# OpenCV configuration file for Android\n\
+import os\n\
+import sys\n\
+\n\
+BINARIES_PATHS = []\n\
+HEADLESS = True\n\
+DEBUG = False\n\
+LOADER_PYTHON_VERSION = "{}.{}.{}".format(*sys.version_info[:3])\n\
+\n\
+# Native libraries for Android\n\
+if os.path.exists("/data/data/org.example.kivyopencvcamera/files/app/lib"):\n\
+    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/files/app/lib")\n\
+if os.path.exists("/data/data/org.example.kivyopencvcamera/lib"):\n\
+    BINARIES_PATHS.append("/data/data/org.example.kivyopencvcamera/lib")\n\
+\n\
+# Tell OpenCV where to find its native libraries\n\
+if hasattr(sys, "getandroidapilevel"):\n\
+    ANDROID = True\n\
+else:\n\
+    ANDROID = False\n\
+' > cv2_config/config.py && \
+    echo '# OpenCV config package' > cv2_config/__init__.py
 
 # Android SDK setup
 RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
@@ -82,6 +113,34 @@ RUN mkdir -p ${ANDROID_HOME}/tools/bin && \
 
 # Create custom OpenCV recipe directory
 RUN mkdir -p /root/.buildozer/android/platform/python-for-android/recipes/opencv
+
+# Create setup_hooks.py for P4A to use during build
+RUN echo 'import os\n\
+import shutil\n\
+import glob\n\
+from os.path import join, exists, basename\n\
+\n\
+def before_apk_build(context):\n\
+    print("Running pre-build hook for OpenCV integration...")\n\
+    # Check for OpenCV configuration\n\
+    site_packages = context.site_packages_dir\n\
+    \n\
+    # Create cv2 directory if needed\n\
+    cv2_dir = os.path.join(site_packages, "cv2")\n\
+    os.makedirs(cv2_dir, exist_ok=True)\n\
+    \n\
+    # Copy config.py to cv2 directory\n\
+    if os.path.exists("cv2_config/config.py"):\n\
+        shutil.copy("cv2_config/config.py", os.path.join(cv2_dir, "config.py"))\n\
+        print("Copied config.py to cv2 directory")\n\
+    else:\n\
+        print("Warning: config.py not found in cv2_config directory")\n\
+\n\
+def after_apk_build(context):\n\
+    print("Running post-build hook for OpenCV integration...")\n\
+    # Nothing needed here for now\n\
+    pass\n\
+' > setup_hooks.py
 
 # Copy the custom OpenCV recipe
 COPY opencv_recipe.py /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py
@@ -125,6 +184,18 @@ EOF\n\
 if [ "$1" = "clean" ]; then\n\
     echo "Cleaning buildozer cache..."\n\
     rm -rf /app/.buildozer\n\
+fi\n\
+\n\
+# Copy OpenCV libraries if they don\'t exist in the app directory\n\
+if [ ! -d "/app/libs" ]; then\n\
+    echo "Copying OpenCV libraries to app directory..."\n\
+    cp -r /app/libs /app/\n\
+fi\n\
+\n\
+# Copy OpenCV config if it doesn\'t exist\n\
+if [ ! -d "/app/cv2_config" ]; then\n\
+    echo "Copying OpenCV config to app directory..."\n\
+    cp -r /app/cv2_config /app/\n\
 fi\n\
 \n\
 # Run buildozer with debug output\n\
