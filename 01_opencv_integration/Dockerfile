@@ -4,8 +4,6 @@ FROM ubuntu:20.04
 # Environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.local/bin:${PATH}"
-# bypass the root user check
-ENV BUILDOZER_NO_CONFIRM=1
 
 # Install required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -52,16 +50,31 @@ RUN mkdir -p /root/.android && \
     mkdir -p /root/.buildozer/android/platform/licenses && \
     echo "\n8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e" > /root/.buildozer/android/platform/licenses/android-sdk-license
 
-# Modify buildozer script to bypass the root user check
-RUN pip3 install --upgrade buildozer && \
-    sed -i 's/def check_root(self)/def check_root(self):\n        return/' /usr/local/lib/python3.8/dist-packages/buildozer/__init__.py
-
-# Pre-download Android SDK and NDK
-RUN cd /app && buildozer android update
-
-# Create a build script
-RUN echo '#!/bin/bash\ncd /app && buildozer android debug' > /app/build_apk.sh && \
-    chmod +x /app/build_apk.sh
+# Create a script to patch buildozer and run the first build
+RUN echo '#!/bin/bash\n\
+# Patch the buildozer script to disable root user check\n\
+cat > /tmp/buildozer_patch.py << EOF\n\
+#!/usr/bin/env python3\n\
+import fileinput\n\
+import sys\n\
+\n\
+filename = "/usr/local/lib/python3.8/dist-packages/buildozer/__init__.py"\n\
+with fileinput.FileInput(filename, inplace=True) as file:\n\
+    for line in file:\n\
+        if "def check_root(self):" in line:\n\
+            print(line, end="")\n\
+            print("        # Root check disabled for Docker")\n\
+            print("        return")\n\
+            continue\n\
+        print(line, end="")\n\
+EOF\n\
+\n\
+python3 /tmp/buildozer_patch.py\n\
+\n\
+# Now run buildozer\n\
+cd /app\n\
+buildozer android debug\n\
+' > /app/build_apk.sh && chmod +x /app/build_apk.sh
 
 # Set the entrypoint
 ENTRYPOINT ["/app/build_apk.sh"]

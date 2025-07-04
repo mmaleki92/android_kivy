@@ -4,6 +4,5 @@ services:
   buildozer:
     build: .
     volumes:
-      - .:/app  # Only mount the current directory
+      - .:/app
       - ./bin:/app/bin  # Ensure the bin directory with APKs is accessible
-    command: buildozer -v android debug
