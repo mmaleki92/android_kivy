@@ -28,7 +28,7 @@ android.add_libs_x86_64 = libs/x86_64/*.so
 android.gradle_dependencies = androidx.core:core:1.8.0, androidx.multidex:multidex:2.0.1
 
 # Use p4a hooks to copy config files during build
-p4a.hook = setup_hooks.py
+p4a.hook = opencv_hook.py
 p4a.bootstrap = sdl2
 
 # Debug and crash logging
