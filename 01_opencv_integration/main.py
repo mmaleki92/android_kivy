@@ -70,6 +70,34 @@ else:
             with open(standard_config, 'w') as f:
                 f.write(config_content)
             Logger.info(f"OpenCV: Created {standard_config}")
+
+            # Write a basic __init__.py if not present (critical fix)
+            init_py = os.path.join(cv2_dir, '__init__.py')
+            if not os.path.exists(init_py):
+                with open(init_py, 'w') as f:
+                    f.write("""
+# Anti-recursion initialization for OpenCV
+import os
+import sys
+
+# Prevent recursion by using a flag
+if hasattr(sys, '_opencv_init') and sys._opencv_init:
+    # Return empty module to prevent recursion
+    from types import ModuleType
+    module = ModuleType("cv2")
+    sys.modules["cv2"] = module
+else:
+    # Set flag to indicate we're in initialization
+    sys._opencv_init = True
+    try:
+        # Import binary module directly
+        from cv2.cv2 import *
+    finally:
+        # Clean up
+        if hasattr(sys, '_opencv_init'):
+            sys._opencv_init = False
+""")
+                Logger.info(f"OpenCV: Created {init_py} with anti-recursion protection")
             
             return True
         else:
@@ -90,28 +118,14 @@ try:
     
     # First try our custom bootstrap loader
     try:
-        from cv2_bootstrap import load_cv2
-        cv2 = load_cv2()
-        if cv2:
-            Logger.info("OpenCV: Successfully imported cv2 via bootstrap")
-            HAS_CV2 = True
-        else:
-            # Fall back to regular import
-            import cv2
-            Logger.info("OpenCV: Successfully imported cv2 directly")
-            HAS_CV2 = True
+        # Set a flag to prevent recursion
+        sys._opencv_init = False
+        import cv2
+        Logger.info("OpenCV: Successfully imported cv2 directly")
+        HAS_CV2 = True
     except Exception as bootstrap_error:
-        Logger.error(f"OpenCV: Bootstrap import failed: {str(bootstrap_error)}")
-        # Last resort - try direct import
-        try:
-            # Set an environment variable to prevent recursion
-            os.environ['OPENCV_IMPORT_DIRECT'] = '1'
-            import cv2
-            Logger.info("OpenCV: Successfully imported cv2 via direct method")
-            HAS_CV2 = True
-        except Exception as e:
-            Logger.error(f"OpenCV: All import methods failed: {str(e)}")
-            HAS_CV2 = False
+        Logger.error(f"OpenCV: Standard import failed: {str(bootstrap_error)}")
+        HAS_CV2 = False
     
     if HAS_CV2:
         Logger.info("OpenCV: Successfully imported cv2 version " + cv2.__version__)
@@ -119,30 +133,6 @@ except Exception as e:
     Logger.error("OpenCV: Failed to import cv2: " + str(e))
     Logger.error("OpenCV: " + traceback.format_exc())
     HAS_CV2 = False
-
-    # Try to diagnose the issue further
-    try:
-        import os
-        Logger.error("OpenCV: App directory contents: " + str(os.listdir('.')))
-        
-        # Check Python site-packages
-        for path in sys.path:
-            if 'site-packages' in path and os.path.exists(path):
-                Logger.error(f"OpenCV: Site packages at {path}: {os.listdir(path)}")
-                
-                # Check if cv2 directory exists
-                cv2_path = os.path.join(path, 'cv2')
-                if os.path.exists(cv2_path):
-                    Logger.error(f"OpenCV: cv2 package contents: {os.listdir(cv2_path)}")
-        
-        # Check common library paths
-        for lib_path in ['/data/data/org.example.kivyopencvcamera/files/app/lib', 
-                        '/data/data/org.example.kivyopencvcamera/lib',
-                        '/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs']:
-            if os.path.exists(lib_path):
-                Logger.error(f"OpenCV: Libraries in {lib_path}: {os.listdir(lib_path)}")
-    except Exception as e2:
-        Logger.error("OpenCV: Diagnostics failed: " + str(e2))
 
 # Define the UI with error reporting
 kv = '''
