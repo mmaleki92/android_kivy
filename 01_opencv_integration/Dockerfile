@@ -6,7 +6,7 @@ ENV ANDROID_HOME="/root/android-sdk"
 ENV ANDROID_SDK_ROOT="/root/android-sdk"
 ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
 
-# Add repository for Java 17
+# Add repository for Java 17 with correct Ubuntu codename
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     apt-transport-https \
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common && \
     mkdir -p /etc/apt/keyrings && \
     wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - && \
-    add-apt-repository 'deb https://packages.adoptium.net/artifactory/deb $(UBUNTU_CODENAME) main'
+    add-apt-repository 'deb https://packages.adoptium.net/artifactory/deb focal main'
 
 # Install required system packages including Java 17
 RUN apt-get update && apt-get install -y --no-install-recommends \
