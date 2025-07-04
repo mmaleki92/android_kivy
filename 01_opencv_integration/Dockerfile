@@ -3,9 +3,9 @@ FROM ubuntu:20.04
 
 # Environment variables
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/root/.local/bin:/root/android-sdk/cmdline-tools/latest/bin:${PATH}"
 ENV ANDROID_HOME="/root/android-sdk"
 ENV ANDROID_SDK_ROOT="/root/android-sdk"
+ENV PATH="${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools"
 
 # Install required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -42,12 +42,16 @@ RUN pip3 install --upgrade pip && \
 # Create app directory
 WORKDIR /app
 
-# Install Android SDK manually (bypassing buildozer's installation)
-RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
-    wget https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip -O cmdline-tools.zip && \
-    unzip cmdline-tools.zip -d ${ANDROID_HOME}/tmp && \
-    mv ${ANDROID_HOME}/tmp/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
-    rm -rf ${ANDROID_HOME}/tmp cmdline-tools.zip
+# Download Android SDK tools
+RUN mkdir -p ${ANDROID_HOME} && \
+    cd ${ANDROID_HOME} && \
+    wget https://dl.google.com/android/repository/commandlinetools-linux-8092744_latest.zip -O commandlinetools.zip && \
+    unzip commandlinetools.zip && \
+    rm commandlinetools.zip
+
+# Create directory structure expected by buildozer
+RUN mkdir -p ${ANDROID_HOME}/tools/bin && \
+    ln -s ${ANDROID_HOME}/cmdline-tools/bin/* ${ANDROID_HOME}/tools/bin/
 
 # Accept all licenses
 RUN mkdir -p ${ANDROID_HOME}/licenses && \
@@ -57,9 +61,10 @@ RUN mkdir -p ${ANDROID_HOME}/licenses && \
     echo "84831b9409646a918e30573bab4c9c91346d8abd" > ${ANDROID_HOME}/licenses/android-sdk-preview-license
 
 # Install required Android SDK components
-RUN yes | sdkmanager --licenses && \
-    sdkmanager --update && \
-    sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+RUN cd ${ANDROID_HOME}/tools/bin && \
+    ./sdkmanager --update && \
+    yes | ./sdkmanager --licenses && \
+    ./sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
 # Create a script to build the APK
 RUN echo '#!/bin/bash\n\
@@ -85,7 +90,7 @@ python3 /tmp/buildozer_patch.py\n\
 # Make sure buildozer uses our pre-installed SDK\n\
 export ANDROID_HOME=/root/android-sdk\n\
 export ANDROID_SDK_ROOT=/root/android-sdk\n\
-export PATH=$PATH:/root/android-sdk/platform-tools\n\
+export PATH=$PATH:/root/android-sdk/platform-tools:/root/android-sdk/tools/bin\n\
 \n\
 # Now run buildozer\n\
 cd /app\n\
