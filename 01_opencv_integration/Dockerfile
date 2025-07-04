@@ -4,6 +4,8 @@ FROM ubuntu:20.04
 # Environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/root/.local/bin:${PATH}"
+# bypass the root user check
+ENV BUILDOZER_NO_CONFIRM=1
 
 # Install required system packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -50,10 +52,12 @@ RUN mkdir -p /root/.android && \
     mkdir -p /root/.buildozer/android/platform/licenses && \
     echo "\n8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e" > /root/.buildozer/android/platform/licenses/android-sdk-license
 
-# Pre-download Android SDK and NDK (this is the key part for self-containment)
-RUN cd /app && \
-    buildozer android p4a -- --help && \
-    buildozer android update
+# Modify buildozer script to bypass the root user check
+RUN pip3 install --upgrade buildozer && \
+    sed -i 's/def check_root(self)/def check_root(self):\n        return/' /usr/local/lib/python3.8/dist-packages/buildozer/__init__.py
+
+# Pre-download Android SDK and NDK
+RUN cd /app && buildozer android update
 
 # Create a build script
 RUN echo '#!/bin/bash\ncd /app && buildozer android debug' > /app/build_apk.sh && \
