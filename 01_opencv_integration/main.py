@@ -31,7 +31,7 @@ def setup_opencv():
             
             # Create version-specific config files that OpenCV is looking for
             config_content = """
-# Auto-generated config file for OpenCV on Android
+# Simple config file for OpenCV on Android
 import os
 import sys
 
@@ -45,8 +45,8 @@ if os.path.exists('/data/data/org.example.kivyopencvcamera/files/app/lib'):
     BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/files/app/lib')
 if os.path.exists('/data/data/org.example.kivyopencvcamera/lib'):
     BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/lib')
-if os.path.exists('/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs'):
-    BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs')
+if os.path.exists('/data/user/0/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs'):
+    BINARIES_PATHS.append('/data/user/0/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs')
 
 # Tell OpenCV where to find its native libraries
 if hasattr(sys, 'getandroidapilevel'):
@@ -87,9 +87,34 @@ Logger.info(f"OpenCV: Configuration setup {'successful' if setup_success else 'f
 # Try importing OpenCV with robust error handling
 try:
     Logger.info("OpenCV: Attempting to import cv2...")
-    import cv2
-    Logger.info("OpenCV: Successfully imported cv2 version " + cv2.__version__)
-    HAS_CV2 = True
+    
+    # First try our custom bootstrap loader
+    try:
+        from cv2_bootstrap import load_cv2
+        cv2 = load_cv2()
+        if cv2:
+            Logger.info("OpenCV: Successfully imported cv2 via bootstrap")
+            HAS_CV2 = True
+        else:
+            # Fall back to regular import
+            import cv2
+            Logger.info("OpenCV: Successfully imported cv2 directly")
+            HAS_CV2 = True
+    except Exception as bootstrap_error:
+        Logger.error(f"OpenCV: Bootstrap import failed: {str(bootstrap_error)}")
+        # Last resort - try direct import
+        try:
+            # Set an environment variable to prevent recursion
+            os.environ['OPENCV_IMPORT_DIRECT'] = '1'
+            import cv2
+            Logger.info("OpenCV: Successfully imported cv2 via direct method")
+            HAS_CV2 = True
+        except Exception as e:
+            Logger.error(f"OpenCV: All import methods failed: {str(e)}")
+            HAS_CV2 = False
+    
+    if HAS_CV2:
+        Logger.info("OpenCV: Successfully imported cv2 version " + cv2.__version__)
 except Exception as e:
     Logger.error("OpenCV: Failed to import cv2: " + str(e))
     Logger.error("OpenCV: " + traceback.format_exc())
@@ -162,7 +187,7 @@ class MainApp(App):
             root.ids.content.add_widget(log_box)
             
             # Update OpenCV status
-            if HAS_CV2:
+            if 'HAS_CV2' in globals() and HAS_CV2:
                 root.ids.status.text = f'OpenCV loaded successfully'
                 root.ids.status.color = (0, 1, 0, 1)
             else:
@@ -190,7 +215,7 @@ class MainApp(App):
     def on_start(self):
         # App startup
         self.log("Application started")
-        if HAS_CV2:
+        if 'HAS_CV2' in globals() and HAS_CV2:
             self.log("OpenCV initialized successfully")
             # Try to show OpenCV version
             try:
