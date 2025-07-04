@@ -25,13 +25,13 @@ def setup_opencv():
             cv2_dir = os.path.join(site_packages, 'cv2')
             os.makedirs(cv2_dir, exist_ok=True)
             
-            # Check if config.py already exists
-            config_file = os.path.join(cv2_dir, 'config.py')
-            if not os.path.exists(config_file):
-                Logger.info("OpenCV: Creating config.py file")
-                with open(config_file, 'w') as f:
-                    f.write("""
-# Auto-generated config.py for OpenCV on Android
+            # Get Python version components
+            python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+            major_version = str(sys.version_info.major)
+            
+            # Create version-specific config files that OpenCV is looking for
+            config_content = """
+# Auto-generated config file for OpenCV on Android
 import os
 import sys
 
@@ -45,16 +45,32 @@ if os.path.exists('/data/data/org.example.kivyopencvcamera/files/app/lib'):
     BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/files/app/lib')
 if os.path.exists('/data/data/org.example.kivyopencvcamera/lib'):
     BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/lib')
+if os.path.exists('/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs'):
+    BINARIES_PATHS.append('/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs')
 
 # Tell OpenCV where to find its native libraries
 if hasattr(sys, 'getandroidapilevel'):
     ANDROID = True
 else:
     ANDROID = False
-""")
-                Logger.info(f"OpenCV: Created config.py at {config_file}")
-            else:
-                Logger.info(f"OpenCV: config.py already exists at {config_file}")
+"""
+            # Create the specific config files OpenCV is looking for
+            specific_config = os.path.join(cv2_dir, f'config-{python_version}.py')
+            with open(specific_config, 'w') as f:
+                f.write(config_content)
+            Logger.info(f"OpenCV: Created {specific_config}")
+            
+            general_config = os.path.join(cv2_dir, f'config-{major_version}.py')
+            with open(general_config, 'w') as f:
+                f.write(config_content)
+            Logger.info(f"OpenCV: Created {general_config}")
+            
+            # Also create standard config.py as a fallback
+            standard_config = os.path.join(cv2_dir, 'config.py')
+            with open(standard_config, 'w') as f:
+                f.write(config_content)
+            Logger.info(f"OpenCV: Created {standard_config}")
+            
             return True
         else:
             Logger.error("OpenCV: Could not find site-packages directory")
@@ -96,7 +112,8 @@ except Exception as e:
         
         # Check common library paths
         for lib_path in ['/data/data/org.example.kivyopencvcamera/files/app/lib', 
-                        '/data/data/org.example.kivyopencvcamera/lib']:
+                        '/data/data/org.example.kivyopencvcamera/lib',
+                        '/data/data/org.example.kivyopencvcamera/files/app/_python_bundle/site-packages/opencv_python_headless.libs']:
             if os.path.exists(lib_path):
                 Logger.error(f"OpenCV: Libraries in {lib_path}: {os.listdir(lib_path)}")
     except Exception as e2:
