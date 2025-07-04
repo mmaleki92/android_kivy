@@ -12,8 +12,8 @@ requirements = python3,kivy==2.2.1,numpy==1.22.4,opencv-python-headless==4.5.5.6
 android.permissions = CAMERA
 android.api = 33
 android.minapi = 21
-android.ndk = 25.2.9519653
-android.sdk = 33
+android.ndk_path = /root/android-sdk/ndk/25.2.9519653
+android.sdk_path = /root/android-sdk
 android.arch = arm64-v8a
 android.accept_sdk_license = True
 
