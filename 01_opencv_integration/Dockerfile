@@ -59,7 +59,7 @@ RUN mkdir -p libs/arm64-v8a libs/armeabi-v7a libs/x86 libs/x86_64 && \
     cp libs/arm64-v8a/* libs/x86/ && \
     cp libs/arm64-v8a/* libs/x86_64/
 
-# Create OpenCV config file
+# Create OpenCV config directory and file
 RUN mkdir -p cv2_config && \
     echo '# OpenCV configuration file for Android' > cv2_config/config.py && \
     echo 'import os' >> cv2_config/config.py && \
@@ -119,8 +119,17 @@ RUN mkdir -p /root/.buildozer/android/platform && \
     ln -sf ${ANDROID_HOME} /root/.buildozer/android/platform/android-sdk && \
     ln -sf ${ANDROID_NDK_HOME} /root/.buildozer/android/platform/android-ndk-r25b
 
-# Create custom OpenCV recipe directory
-RUN mkdir -p /root/.buildozer/android/platform/python-for-android/recipes/opencv
+# Create custom OpenCV recipe directory and file
+RUN mkdir -p /root/.buildozer/android/platform/python-for-android/recipes/opencv && \
+    echo 'from pythonforandroid.recipe import PythonRecipe' > /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo 'class OpenCVRecipe(PythonRecipe):' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    version = "4.5.5.64"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    url = "https://pypi.org/project/opencv-python-headless/4.5.5.64/"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    depends = ["numpy"]' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '    site_packages_name = "cv2"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
+    echo 'recipe = OpenCVRecipe()' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py
 
 # Create setup_hooks.py for P4A to use during build
 RUN echo '# P4A hooks for OpenCV' > setup_hooks.py && \
@@ -150,46 +159,9 @@ RUN echo '# P4A hooks for OpenCV' > setup_hooks.py && \
     echo '    # Nothing needed here for now' >> setup_hooks.py && \
     echo '    pass' >> setup_hooks.py
 
-# Create simplified opencv_recipe.py
-RUN echo 'from pythonforandroid.recipe import PythonRecipe' > /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo 'class OpenCVRecipe(PythonRecipe):' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '    version = "4.5.5.64"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '    url = "https://pypi.org/project/opencv-python-headless/4.5.5.64/"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '    depends = ["numpy"]' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '    site_packages_name = "cv2"' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo '' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py && \
-    echo 'recipe = OpenCVRecipe()' >> /root/.buildozer/android/platform/python-for-android/recipes/opencv/__init__.py
-
-# Create script to patch buildozer
-RUN echo '#!/usr/bin/env python3' > /tmp/patch_buildozer.py && \
-    echo 'import fileinput' >> /tmp/patch_buildozer.py && \
-    echo 'import sys' >> /tmp/patch_buildozer.py && \
-    echo 'import os' >> /tmp/patch_buildozer.py && \
-    echo '' >> /tmp/patch_buildozer.py && \
-    echo '# First patch - disable root user check' >> /tmp/patch_buildozer.py && \
-    echo 'filename = "/usr/local/lib/python3.8/dist-packages/buildozer/__init__.py"' >> /tmp/patch_buildozer.py && \
-    echo 'with fileinput.FileInput(filename, inplace=True) as file:' >> /tmp/patch_buildozer.py && \
-    echo '    for line in file:' >> /tmp/patch_buildozer.py && \
-    echo '        if "def check_root(self):" in line:' >> /tmp/patch_buildozer.py && \
-    echo '            print(line, end="")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        # Root check disabled for Docker")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        return")' >> /tmp/patch_buildozer.py && \
-    echo '            continue' >> /tmp/patch_buildozer.py && \
-    echo '        print(line, end="")' >> /tmp/patch_buildozer.py && \
-    echo '' >> /tmp/patch_buildozer.py && \
-    echo '# Second patch - use pre-downloaded NDK' >> /tmp/patch_buildozer.py && \
-    echo 'filename = "/usr/local/lib/python3.8/dist-packages/buildozer/targets/android.py"' >> /tmp/patch_buildozer.py && \
-    echo 'with fileinput.FileInput(filename, inplace=True) as file:' >> /tmp/patch_buildozer.py && \
-    echo '    for line in file:' >> /tmp/patch_buildozer.py && \
-    echo '        if "def _install_android_ndk(self):" in line:' >> /tmp/patch_buildozer.py && \
-    echo '            print(line, end="")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        # Skip downloading NDK - use pre-downloaded version")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        ndk_dir = self.android_ndk_dir")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        self.buildozer.info(\'Android NDK found at {}\'.format(ndk_dir))")' >> /tmp/patch_buildozer.py && \
-    echo '            print("        return")' >> /tmp/patch_buildozer.py && \
-    echo '            continue' >> /tmp/patch_buildozer.py && \
-    echo '        print(line, end="")' >> /tmp/patch_buildozer.py && \
+# Copy the patch script and run it
+COPY patch_buildozer.py /tmp/patch_buildozer.py
+RUN chmod +x /tmp/patch_buildozer.py && \
     python3 /tmp/patch_buildozer.py
 
 # Create build script
