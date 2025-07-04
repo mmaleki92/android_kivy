@@ -33,16 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
-WORKDIR /app
-
 # Install buildozer
 RUN pip3 install --upgrade pip && \
     pip3 install --no-cache-dir buildozer==1.5.0 Cython==0.29.33
 
-# Copy the application files
-COPY main.py .
-COPY buildozer.spec .
+# Create app directory
+WORKDIR /app
 
 # Accept Android licenses
 RUN mkdir -p /root/.android && \
@@ -50,7 +46,7 @@ RUN mkdir -p /root/.android && \
     mkdir -p /root/.buildozer/android/platform/licenses && \
     echo "\n8933bad161af4178b1185d1a37fbf41ea5269c55\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e" > /root/.buildozer/android/platform/licenses/android-sdk-license
 
-# Create a script to patch buildozer and run the first build
+# Create a script in /usr/local/bin/ (not in /app which will be mounted over)
 RUN echo '#!/bin/bash\n\
 # Patch the buildozer script to disable root user check\n\
 cat > /tmp/buildozer_patch.py << EOF\n\
@@ -73,8 +69,8 @@ python3 /tmp/buildozer_patch.py\n\
 \n\
 # Now run buildozer\n\
 cd /app\n\
-buildozer android debug\n\
-' > /app/build_apk.sh && chmod +x /app/build_apk.sh
+buildozer -v android debug\n\
+' > /usr/local/bin/build_apk.sh && chmod +x /usr/local/bin/build_apk.sh
 
 # Set the entrypoint
-ENTRYPOINT ["/app/build_apk.sh"]
+ENTRYPOINT ["/usr/local/bin/build_apk.sh"]
