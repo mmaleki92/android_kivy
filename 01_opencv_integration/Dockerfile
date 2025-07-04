@@ -4,10 +4,20 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ANDROID_HOME="/root/android-sdk"
 ENV ANDROID_SDK_ROOT="/root/android-sdk"
-ENV JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
 ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
 
-# Install required system packages
+# Add repository for Java 17
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    software-properties-common && \
+    mkdir -p /etc/apt/keyrings && \
+    wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | apt-key add - && \
+    add-apt-repository 'deb https://packages.adoptium.net/artifactory/deb $(UBUNTU_CODENAME) main'
+
+# Install required system packages including Java 17
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -15,9 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
     build-essential \
     git \
-    wget \
     unzip \
-    openjdk-11-jdk \
+    temurin-17-jdk \
     autoconf \
     libtool \
     pkg-config \
@@ -34,6 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lbzip2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME for Java 17
+ENV JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
 
 # Install buildozer
 RUN pip3 install --upgrade pip && \
@@ -87,32 +99,11 @@ with fileinput.FileInput(filename, inplace=True) as file:\n\
 ' > /tmp/patch_buildozer.py && \
     python3 /tmp/patch_buildozer.py
 
-# Also patch python-for-android to use Gradle 8.0
-RUN pip3 install git+https://github.com/kivy/python-for-android.git && \
-    echo '#!/usr/bin/env python3\n\
-import fileinput\n\
-import sys\n\
-import os\n\
-from pathlib import Path\n\
-\n\
-for root, dirs, files in os.walk("/usr/local/lib/python3.8/dist-packages/pythonforandroid"):\n\
-    for file in files:\n\
-        if file == "build.py" or file == "gradle.py":\n\
-            filepath = os.path.join(root, file)\n\
-            with fileinput.FileInput(filepath, inplace=True) as file_handle:\n\
-                for line in file_handle:\n\
-                    if "distributionUrl=https\\\\://services.gradle.org/distributions/gradle-" in line:\n\
-                        print(line.replace("7.6.1", "8.0"), end="")\n\
-                    else:\n\
-                        print(line, end="")\n\
-' > /tmp/patch_p4a.py && \
-    python3 /tmp/patch_p4a.py
-
-# Create a script to build the APK with Gradle 8.0
+# Create a script to build the APK with Gradle 8.0 and Java 17
 RUN echo '#!/bin/bash\n\
 export ANDROID_HOME=/root/android-sdk\n\
 export ANDROID_SDK_ROOT=/root/android-sdk\n\
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\n\
+export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64\n\
 export PATH=$PATH:/root/android-sdk/platform-tools:/root/android-sdk/cmdline-tools/latest/bin\n\
 \n\
 # If the gradle wrapper already exists, update it to use Gradle 8.0\n\
@@ -128,7 +119,7 @@ fi\n\
 # Create a custom global gradle.properties with Gradle 8.0 compatibility\n\
 mkdir -p /root/.gradle\n\
 cat > /root/.gradle/gradle.properties << EOF\n\
-org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8\n\
+org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\n\
 org.gradle.daemon=true\n\
 org.gradle.parallel=true\n\
 org.gradle.configureondemand=true\n\
