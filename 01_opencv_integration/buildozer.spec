@@ -18,8 +18,8 @@ android.sdk_path = /root/android-sdk
 android.arch = arm64-v8a
 android.accept_sdk_license = True
 
-# Remove hooks since we're using the built-in recipe
-#p4a.hook = opencv_hook.py
+# Use p4a hook to copy config files during build
+p4a.hook = opencv_hook.py
 p4a.bootstrap = sdl2
 
 # Debug and crash logging
