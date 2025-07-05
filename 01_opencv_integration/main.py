@@ -113,6 +113,10 @@ class MainApp(App):
         # App startup
         self.log("Application started")
         
+        # Log system information
+        self.log(f"Python version: {sys.version}")
+        self.log(f"System path: {sys.path}")
+        
         # Try importing OpenCV
         try:
             import cv2
