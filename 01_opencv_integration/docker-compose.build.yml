@@ -2,7 +2,12 @@ version: '3'
 
 services:
   buildozer:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - .:/app
       - ./bin:/app/bin
+    environment:
+      - P4A_HOOK_PATH=/app/opencv_hook.py
+    command: bash -c "chmod +x /app/setup_opencv_config.sh && /app/setup_opencv_config.sh && buildozer -v android debug"
