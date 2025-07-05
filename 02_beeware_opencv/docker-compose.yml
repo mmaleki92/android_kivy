@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  beeware-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - ~/.android:/home/beeuser/.android
+    environment:
+      - ANDROID_HOME=/opt/android-sdk
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_NDK_HOME=/opt/android-sdk/ndk/25.2.9519653
+    ports:
+      - "5000:5000"  # For potential debugging server
+    tty: true
+    stdin_open: true

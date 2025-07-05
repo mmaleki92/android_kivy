@@ -1,0 +1,34 @@
+[tool.briefcase]
+project_name = "OpenCV Demo"
+bundle = "org.example"
+version = "0.0.1"
+url = "https://example.com/opencvdemo"
+license = "BSD"
+author = "Your Name"
+author_email = "your.email@example.com"
+
+[tool.briefcase.app.opencvdemo]
+formal_name = "OpenCV Demo"
+description = "OpenCV Demo with BeeWare"
+icon = "src/opencvdemo/resources/icon"
+sources = ["src/opencvdemo"]
+requires = [
+    "pyside6==6.5.2",
+    "opencv-python-headless==4.5.5.64",
+    "numpy"
+]
+
+[tool.briefcase.app.opencvdemo.macOS]
+requires = []
+
+[tool.briefcase.app.opencvdemo.linux]
+requires = []
+
+[tool.briefcase.app.opencvdemo.windows]
+requires = []
+
+[tool.briefcase.app.opencvdemo.android]
+requires = []
+permission = [
+    "android.permission.CAMERA"
+]
